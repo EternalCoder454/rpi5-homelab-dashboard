@@ -57,6 +57,12 @@
   $: cpuThresh = th(metrics.cpu_percent || 0);
   $: memThresh = th(metrics.mem_percent || 0);
   $: diskThresh = th(metrics.disk_percent || 0);
+  $: tempColor =
+    Number(metrics.cpu_temp_c) > 80
+      ? 'var(--red)'
+      : Number(metrics.cpu_temp_c) > 70
+        ? 'var(--peach)'
+        : 'var(--green)';
 
   // Argon fan manual control. The custom box seeds from the live value once.
   let fanInput: number | undefined;
@@ -96,12 +102,30 @@
     <StatCard label="CPU" value={Math.round(metrics.cpu_percent) || 0} unit="%" threshold={cpuThresh} />
     <StatCard label="RAM" value={Math.round(metrics.mem_percent) || 0} unit="%" threshold={memThresh} />
     <StatCard label="Disk" value={Math.round(metrics.disk_percent) || 0} unit="%" threshold={diskThresh} />
-    <StatCard
-      label="Temp"
-      value={metrics.cpu_temp_c?.toFixed(1) ?? '--'}
-      unit="°C"
-      threshold={Number(metrics.cpu_temp_c) > 70 ? 'warn' : 'normal'}
-    />
+    <div class="card thermals">
+      <span class="t-label">Thermals</span>
+      <span class="t-temp" style="--accent: {tempColor}"
+        >{metrics.cpu_temp_c?.toFixed(1) ?? '--'}<small>°C</small></span
+      >
+      {#if metrics.fan_percent != null && metrics.fan_percent >= 0}
+        <div class="t-fan">
+          <span class="t-fanlabel">Fan · {metrics.fan_mode ?? '—'} · <b>{metrics.fan_percent}%</b></span>
+          <div class="t-fanctl">
+            <input
+              class="fan-input"
+              type="number"
+              min="0"
+              max="100"
+              bind:value={fanInput}
+              on:keydown={(e) => e.key === 'Enter' && setFan(fanInput ?? 0)}
+              aria-label="Fan speed percent"
+            />
+            <button class="fan-btn" on:click={() => setFan(fanInput ?? 0)}>Set</button>
+            <button class="fan-btn" class:active={metrics.fan_mode === 'auto'} on:click={fanAuto}>Auto</button>
+          </div>
+        </div>
+      {/if}
+    </div>
   </div>
 
   <section class="host">
@@ -140,30 +164,6 @@
     <div class="dcard"><span>Load · 1/5/15</span><b>{metrics.load_1 ?? '--'} / {metrics.load_5 ?? '--'} / {metrics.load_15 ?? '--'}</b></div>
     <div class="dcard"><span>Uptime</span><b>{fmtUptime(metrics.uptime_seconds ?? 0)}</b></div>
     <div class="dcard">
-      <span>Fan{metrics.fan_mode ? ` · ${metrics.fan_mode}` : ''}</span>
-      {#if metrics.fan_percent != null && metrics.fan_percent >= 0}
-        <div class="fan-row">
-          <b>{metrics.fan_percent}%</b>
-          <div class="fan-ctl">
-            <input
-              class="fan-input"
-              type="number"
-              min="0"
-              max="100"
-              bind:value={fanInput}
-              on:keydown={(e) => e.key === 'Enter' && setFan(fanInput ?? 0)}
-              aria-label="Fan speed percent"
-            />
-            <button class="fan-btn" on:click={() => setFan(fanInput ?? 0)}>Set</button>
-            <button class="fan-btn" class:active={metrics.fan_mode === 'auto'} on:click={fanAuto}>Auto</button>
-          </div>
-        </div>
-      {:else}
-        <b>{metrics.fan_state ?? 'N/A'}</b>
-      {/if}
-    </div>
-    <div class="dcard"><span>CPU Temp</span><b>{(metrics.cpu_temp_c ?? 0).toFixed(1)} °C</b></div>
-    <div class="dcard">
       <span>Throttled</span>
       <b class="caps" style="color:{metrics.throttled && metrics.throttled !== '0x0' ? 'var(--peach)' : 'var(--green)'}">
         {!metrics.throttled ? '--' : metrics.throttled === '0x0' ? 'No' : metrics.throttled}
@@ -199,7 +199,35 @@
   header { display: flex; justify-content: space-between; align-items: center; }
   h1 { font-size: 1.3rem; font-weight: 600; color: var(--text); }
 
-  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; align-items: start; }
+
+  /* Thermals card: temperature + fan control, matching the StatCard look. */
+  .thermals {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1.25rem 1rem;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .t-label { color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+  .t-temp { font-size: 1.8rem; font-weight: bold; color: var(--accent); display: flex; align-items: baseline; gap: 2px; }
+  .t-temp small { font-size: 0.6em; opacity: 0.7; }
+  .t-fan {
+    width: 100%;
+    margin-top: 0.35rem;
+    padding-top: 0.7rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .t-fanlabel { color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .t-fanlabel b { color: var(--text); font-weight: 600; }
+  .t-fanctl { display: flex; align-items: center; gap: 0.35rem; }
 
   .host {
     background: var(--surface);
@@ -248,8 +276,6 @@
   .dcard b { color: var(--text); font-size: 1rem; font-weight: 600; }
   .dcard b.caps { font-variant: small-caps; text-transform: lowercase; letter-spacing: 1px; }
 
-  .fan-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
-  .fan-ctl { display: flex; align-items: center; gap: 0.35rem; }
   .fan-input {
     width: 3rem;
     background: var(--surface-2);
