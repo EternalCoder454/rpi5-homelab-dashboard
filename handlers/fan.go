@@ -33,11 +33,14 @@ func defaultCurve() string {
 }
 
 func restartArgon() error {
-	// argononed has a low systemd start-rate-limit (5 starts / 10s); repeated fan
-	// changes can trip it and leave the daemon dead — taking the fan AND the power
-	// button down. Clearing the failed/limit counter first keeps restarts reliable.
+	// The fan curve lives in /etc/argononed.conf. The Go daemon (argon-go) re-reads
+	// it live, so no restart is needed there. The stock python argononed only reads
+	// it at start, so if it's the active controller (fallback) it needs a restart.
+	// try-restart only acts on a unit that's actually running: with argon-go active
+	// this is a no-op (argononed is disabled); with argononed active it reloads it.
+	// reset-failed first guards its low start-rate-limit.
 	exec.Command("sudo", "-n", "systemctl", "reset-failed", "argononed").Run()
-	return exec.Command("sudo", "-n", "systemctl", "restart", "argononed").Run()
+	return exec.Command("sudo", "-n", "systemctl", "try-restart", "argononed").Run()
 }
 
 // FanSet — POST /api/fan/set {"percent": N}. Pins the fan to a fixed speed.

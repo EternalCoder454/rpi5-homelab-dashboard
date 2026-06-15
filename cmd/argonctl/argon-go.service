@@ -1,0 +1,12 @@
+[Unit]
+Description=Argon ONE fan + power button (Go reimplementation of argononed)
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/argonctl -v
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

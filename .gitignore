@@ -4,6 +4,9 @@
 /homelab-dashboard-linux-amd64
 /homelab
 /homelab-arm64
+/argonctl
+/argonctl-linux-arm64
+/argonctl-linux-amd64
 
 # Frontend dependencies and intermediate build output.
 # The built site lives in static/ and IS committed so the Pi needs no Node.
