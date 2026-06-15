@@ -18,6 +18,26 @@ memory, and a prebuilt frontend so the Pi needs no Node toolchain.
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="images/overview.png" alt="System Overview" width="900"><br>
+  <em>System Overview — live CPU, memory, temperature, network throughput, and top processes.</em>
+</p>
+
+|  |  |
+| :--: | :--: |
+| <img src="images/home.png" alt="Home dashboard"> | <img src="images/terminal.png" alt="Web terminal"> |
+| **Home** — gauges, service links & health checks | **Terminal** — a real shell in the browser |
+| <img src="images/docker.png" alt="Docker management"> | <img src="images/services.png" alt="systemd services"> |
+| **Docker** — containers, images & volumes | **Services** — start/stop/enable systemd units |
+| <img src="images/files.png" alt="File manager"> | <img src="images/filesystem.png" alt="Filesystem browser"> |
+| **Files** — browse, edit & upload | **Filesystem** — edit anywhere, password-gated |
+| <img src="images/media-gallery.png" alt="Media gallery"> | <img src="images/settings-themes.png" alt="Themes and UI scaling"> |
+| **Media** — image & video gallery | **Settings** — 9 themes + adjustable UI scale |
+
+---
+
 ## Features
 
 - **Overview** — live CPU / memory / temperature / load gauges and a sortable process list, streamed over WebSockets.
