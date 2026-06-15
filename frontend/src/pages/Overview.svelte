@@ -107,7 +107,7 @@
   <div class="detail-grid">
     <div class="dcard"><span>Memory</span><b>{metrics.mem_used_mb ?? 0} / {metrics.mem_total_mb ?? 0} MB</b></div>
     <div class="dcard"><span>Swap</span><b>{metrics.swap_used_mb ?? 0} / {metrics.swap_total_mb ?? 0} MB</b></div>
-    <div class="dcard"><span>Disk</span><b>{(metrics.disk_used_gb ?? 0).toFixed(1)} / {(metrics.disk_total_gb ?? 0).toFixed(1)} GB</b></div>
+    <div class="dcard"><span>Disk{metrics.disk_name ? ` · ${metrics.disk_name}` : ''}</span><b>{(metrics.disk_used_gb ?? 0).toFixed(1)} / {(metrics.disk_total_gb ?? 0).toFixed(1)} GB</b></div>
     <div class="dcard"><span>Net RX / TX</span><b>{(metrics.net_rx_kbps ?? 0).toFixed(1)} / {(metrics.net_tx_kbps ?? 0).toFixed(1)} kbps</b></div>
     <div class="dcard"><span>Load · 1/5/15</span><b>{metrics.load_1 ?? '--'} / {metrics.load_5 ?? '--'} / {metrics.load_15 ?? '--'}</b></div>
     <div class="dcard"><span>Uptime</span><b>{fmtUptime(metrics.uptime_seconds ?? 0)}</b></div>

@@ -28,6 +28,7 @@ type SystemMetrics struct {
 	DiskTotalGB   float64 `json:"disk_total_gb"`
 	DiskUsedGB    float64 `json:"disk_used_gb"`
 	DiskPercent   float64 `json:"disk_percent"`
+	DiskName      string  `json:"disk_name"`
 	NetRxKbps     float64 `json:"net_rx_kbps"`
 	NetTxKbps     float64 `json:"net_tx_kbps"`
 	Load1         float64 `json:"load_1"`
@@ -276,6 +277,7 @@ func readMeminfo(m *SystemMetrics) {
 }
 
 func readDisk(m *SystemMetrics) {
+	m.DiskName = primaryDiskName()
 	var stat unix.Statfs_t
 	if err := unix.Statfs("/", &stat); err != nil {
 		return
@@ -287,6 +289,94 @@ func readDisk(m *SystemMetrics) {
 	if total > 0 {
 		m.DiskPercent = (total - free) / total * 100
 	}
+}
+
+// primaryDiskName resolves a clean, human label for the disk backing "/". The
+// device never changes at runtime, so it's computed once and cached.
+var (
+	diskNameOnce  sync.Once
+	diskNameValue string
+)
+
+func primaryDiskName() string {
+	diskNameOnce.Do(func() { diskNameValue = computeDiskName() })
+	return diskNameValue
+}
+
+func computeDiskName() string {
+	disk := parentDisk(rootDevice())
+	if model := diskModel(disk); model != "" {
+		return simplifyDiskName(model)
+	}
+	switch {
+	case strings.HasPrefix(disk, "nvme"):
+		return "NVMe SSD"
+	case strings.HasPrefix(disk, "mmcblk"):
+		return "SD card"
+	default:
+		return disk
+	}
+}
+
+// rootDevice returns the device backing "/" (e.g. "nvme0n1p2"), sans /dev/.
+func rootDevice() string {
+	data, err := os.ReadFile("/proc/mounts")
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		f := strings.Fields(line)
+		if len(f) >= 2 && f[1] == "/" {
+			return strings.TrimPrefix(f[0], "/dev/")
+		}
+	}
+	return ""
+}
+
+// parentDisk maps a partition to its whole-disk device via sysfs, so it handles
+// nvme0n1p2->nvme0n1, mmcblk0p2->mmcblk0 and sda2->sda alike.
+func parentDisk(dev string) string {
+	if dev == "" {
+		return ""
+	}
+	if _, err := os.Stat("/sys/class/block/" + dev + "/partition"); err != nil {
+		return dev // already a whole disk (or unknown)
+	}
+	link, err := filepath.EvalSymlinks("/sys/class/block/" + dev)
+	if err != nil {
+		return dev
+	}
+	return filepath.Base(filepath.Dir(link))
+}
+
+func diskModel(disk string) string {
+	if disk == "" {
+		return ""
+	}
+	for _, p := range []string{
+		"/sys/block/" + disk + "/device/model", // nvme, sata, usb
+		"/sys/block/" + disk + "/device/name",  // mmc/sd
+	} {
+		if b, err := os.ReadFile(p); err == nil {
+			if s := strings.TrimSpace(string(b)); s != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
+// simplifyDiskName collapses whitespace and drops a trailing part-number token,
+// e.g. "SK hynix BC711 HFM256GD3JX013N" -> "SK hynix BC711".
+func simplifyDiskName(model string) string {
+	fields := strings.Fields(model)
+	if len(fields) > 2 {
+		last := fields[len(fields)-1]
+		if len(last) >= 10 && strings.ContainsAny(last, "0123456789") {
+			fields = fields[:len(fields)-1]
+		}
+	}
+	return strings.Join(fields, " ")
 }
 
 func readNetDev(m *SystemMetrics) {
