@@ -129,6 +129,10 @@ func main() {
 	http.HandleFunc("/api/system/upgrade", protect(handlers.SystemUpgrade))
 	http.HandleFunc("/api/system/apt-status", protect(handlers.SystemAptStatus))
 
+	// Argon fan control (manual fixed speed / restore automatic curve).
+	http.HandleFunc("/api/fan/set", protect(handlers.FanSet))
+	http.HandleFunc("/api/fan/auto", protect(handlers.FanAuto))
+
 	// Hub: service links + health checks.
 	http.HandleFunc("/api/hub", protect(handlers.HubGet))
 	http.HandleFunc("/api/hub/link/add", protect(handlers.HubLinkAdd))

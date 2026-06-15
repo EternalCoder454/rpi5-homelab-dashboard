@@ -40,6 +40,7 @@ type SystemMetrics struct {
 	UptimeSeconds int     `json:"uptime_seconds"`
 	FanState      int     `json:"fan_state"`
 	FanPercent    int     `json:"fan_percent"`
+	FanMode       string  `json:"fan_mode"`
 	Throttled     string  `json:"throttled"`
 }
 
@@ -396,6 +397,11 @@ func readFan(m *SystemMetrics) {
 	data, err := os.ReadFile("/etc/argononed.conf")
 	if err != nil {
 		return
+	}
+	if strings.Contains(string(data), "dashboard-manual") {
+		m.FanMode = "manual"
+	} else {
+		m.FanMode = "auto"
 	}
 	type point struct {
 		temp  float64

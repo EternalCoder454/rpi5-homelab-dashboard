@@ -58,6 +58,32 @@
   $: memThresh = th(metrics.mem_percent || 0);
   $: diskThresh = th(metrics.disk_percent || 0);
 
+  // Argon fan manual control. The custom box seeds from the live value once.
+  let fanInput: number | undefined;
+  $: if (fanInput === undefined && typeof metrics.fan_percent === 'number' && metrics.fan_percent >= 0) {
+    fanInput = metrics.fan_percent;
+  }
+  async function setFan(pct: number) {
+    pct = Math.max(0, Math.min(100, Math.round(pct || 0)));
+    fanInput = pct;
+    try {
+      await fetch('/api/fan/set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ percent: pct }),
+      });
+    } catch {
+      /* transient */
+    }
+  }
+  async function fanAuto() {
+    try {
+      await fetch('/api/fan/auto', { method: 'POST' });
+    } catch {
+      /* transient */
+    }
+  }
+
   const fmtUptime = (s: number) => `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
 </script>
 
@@ -113,7 +139,31 @@
     <div class="dcard"><span>Net RX / TX</span><b>{(metrics.net_rx_kbps ?? 0).toFixed(1)} / {(metrics.net_tx_kbps ?? 0).toFixed(1)} kbps</b></div>
     <div class="dcard"><span>Load · 1/5/15</span><b>{metrics.load_1 ?? '--'} / {metrics.load_5 ?? '--'} / {metrics.load_15 ?? '--'}</b></div>
     <div class="dcard"><span>Uptime</span><b>{fmtUptime(metrics.uptime_seconds ?? 0)}</b></div>
-    <div class="dcard"><span>Fan</span><b>{metrics.fan_percent != null && metrics.fan_percent >= 0 ? `${metrics.fan_percent}%` : (metrics.fan_state ?? 'N/A')}</b></div>
+    <div class="dcard">
+      <span>Fan{metrics.fan_mode ? ` · ${metrics.fan_mode}` : ''}</span>
+      {#if metrics.fan_percent != null && metrics.fan_percent >= 0}
+        <div class="fan-row">
+          <b>{metrics.fan_percent}%</b>
+          <div class="fan-ctl">
+            <button title="-10%" on:click={() => setFan(metrics.fan_percent - 10)}>−</button>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              bind:value={fanInput}
+              on:keydown={(e) => e.key === 'Enter' && setFan(fanInput ?? 0)}
+            />
+            <button title="Set %" on:click={() => setFan(fanInput ?? 0)}>set</button>
+            <button title="+10%" on:click={() => setFan(metrics.fan_percent + 10)}>+</button>
+            {#if metrics.fan_mode === 'manual'}
+              <button class="auto" title="Back to automatic" on:click={fanAuto}>auto</button>
+            {/if}
+          </div>
+        </div>
+      {:else}
+        <b>{metrics.fan_state ?? 'N/A'}</b>
+      {/if}
+    </div>
     <div class="dcard"><span>CPU Temp</span><b>{(metrics.cpu_temp_c ?? 0).toFixed(1)} °C</b></div>
     <div class="dcard">
       <span>Throttled</span>
@@ -199,6 +249,36 @@
   .dcard span { color: var(--text-muted); font-size: 0.75rem; letter-spacing: 0.5px; }
   .dcard b { color: var(--text); font-size: 1rem; font-weight: 600; }
   .dcard b.caps { font-variant: small-caps; text-transform: lowercase; letter-spacing: 1px; }
+
+  .fan-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+  .fan-ctl { display: flex; align-items: center; gap: 0.25rem; }
+  .fan-ctl button {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    font-size: 0.95rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .fan-ctl button:hover { border-color: var(--green); color: var(--green); }
+  .fan-ctl button.auto { width: auto; padding: 0 0.45rem; font-size: 0.7rem; }
+  .fan-ctl input {
+    width: 3rem;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.15rem 0.3rem;
+    font-size: 0.8rem;
+    text-align: center;
+  }
 
   .proc-section h2 { font-size: 1rem; color: var(--text-2); margin-bottom: 0.75rem; }
   .proc-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
