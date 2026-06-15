@@ -1,0 +1,29 @@
+# Go build artifacts
+/homelab-dashboard
+/homelab-dashboard-linux-arm64
+/homelab-dashboard-linux-amd64
+/homelab
+/homelab-arm64
+
+# Frontend dependencies and intermediate build output.
+# The built site lives in static/ and IS committed so the Pi needs no Node.
+/frontend/node_modules/
+/frontend/dist/
+
+# Runtime configuration and TLS material — NEVER commit these.
+/config.yaml
+*.pem
+*.key
+*.crt
+
+# Per-install runtime state (contains your own data).
+/hub.json
+/network.json
+/dashboard_ssh_ed25519*
+/uploads/
+/.thumbcache/
+
+# Editor / OS / tooling
+.DS_Store
+*.swp
+/.claude/

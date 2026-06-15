@@ -1,0 +1,32 @@
+# Raspberry Pi Homelab Dashboard — example configuration.
+# Copy this to config.yaml and edit. The installer (install.sh) generates a
+# config.yaml for you, including a hashed password and a TLS certificate.
+
+# TCP port the dashboard listens on.
+port: 8080
+
+# Root directory for the built-in file manager, uploads, and media browser.
+# Relative paths are resolved against the working directory (the install dir).
+# Created automatically if it does not exist.
+upload_dir: ./uploads
+
+# Client IPs / CIDRs permitted to use the "run command" feature. Keep this
+# scoped to your LAN. Localhost plus the RFC1918 private ranges by default.
+exec_allowlist: ["127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+
+# Login shell used by the web terminal.
+shell: /bin/bash
+
+# Authentication. STRONGLY recommended — without it the dashboard (which exposes
+# a terminal, file manager, and host controls) is wide open on your LAN.
+# When BOTH fields are set, every data endpoint requires a login session.
+# Generate the hash with:   ./homelab-dashboard -hashpw 'your-password'
+auth_user: admin
+auth_password_hash: ""
+
+# HTTPS. When BOTH are set, the dashboard serves over TLS instead of plain HTTP.
+# Running the terminal/file manager in cleartext is a bad idea, so HTTPS is
+# recommended even on a trusted LAN. Paths are relative to the working dir.
+# The installer can generate a self-signed certificate for you.
+tls_cert: cert.pem
+tls_key: key.pem

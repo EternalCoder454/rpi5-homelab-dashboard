@@ -1,0 +1,22 @@
+[Unit]
+Description=Raspberry Pi Homelab Dashboard
+Documentation=https://github.com/EternalCoder454/rpi5-homelab-dashboard
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__INSTALL_DIR__
+ExecStart=__INSTALL_DIR__/homelab-dashboard
+Restart=on-failure
+RestartSec=3
+
+# The dashboard manages the host (systemd units, apt, arp-scan, root-owned
+# files) by shelling out to `sudo -n`, so it must be allowed to escalate.
+# NoNewPrivileges=true would break the Services / System / Network / Filesystem
+# features. The install script adds a scoped sudoers rule for this user.
+NoNewPrivileges=false
+
+[Install]
+WantedBy=multi-user.target
