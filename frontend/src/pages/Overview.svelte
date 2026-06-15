@@ -199,7 +199,7 @@
   header { display: flex; justify-content: space-between; align-items: center; }
   h1 { font-size: 1.3rem; font-weight: 600; color: var(--text); }
 
-  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; align-items: start; }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
 
   /* Thermals card: temperature + fan control, matching the StatCard look. */
   .thermals {
@@ -277,31 +277,33 @@
   .dcard b.caps { font-variant: small-caps; text-transform: lowercase; letter-spacing: 1px; }
 
   .fan-input {
-    width: 3rem;
+    width: 2.6rem;
     background: var(--surface-2);
     color: var(--text);
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.2rem 0.4rem;
-    font-size: 0.8rem;
-    text-align: right;
+    border-radius: 5px;
+    padding: 0.3rem 0.4rem;
+    font-family: inherit;
+    font-size: 0.78rem;
+    text-align: center;
     -moz-appearance: textfield;
     appearance: textfield;
   }
-  .fan-input:focus { outline: none; border-color: var(--green); }
+  .fan-input:focus { outline: none; border-color: var(--border-3); }
   .fan-input::-webkit-outer-spin-button,
   .fan-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .fan-btn {
-    background: transparent;
-    color: var(--text-muted);
+    background: var(--surface-2);
+    color: var(--text-2);
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.22rem 0.6rem;
-    font-size: 0.72rem;
+    border-radius: 5px;
+    padding: 0.3rem 0.65rem;
+    font-family: inherit;
+    font-size: 0.78rem;
     cursor: pointer;
     transition: color 0.15s, border-color 0.15s;
   }
-  .fan-btn:hover { color: var(--text); border-color: var(--text-muted); }
+  .fan-btn:hover { color: var(--text); border-color: var(--border-3); }
   .fan-btn.active { color: var(--green); border-color: var(--green); }
 
   .proc-section h2 { font-size: 1rem; color: var(--text-2); margin-bottom: 0.75rem; }
