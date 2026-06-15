@@ -145,19 +145,17 @@
         <div class="fan-row">
           <b>{metrics.fan_percent}%</b>
           <div class="fan-ctl">
-            <button title="-10%" on:click={() => setFan(metrics.fan_percent - 10)}>−</button>
             <input
+              class="fan-input"
               type="number"
               min="0"
               max="100"
               bind:value={fanInput}
               on:keydown={(e) => e.key === 'Enter' && setFan(fanInput ?? 0)}
+              aria-label="Fan speed percent"
             />
-            <button title="Set %" on:click={() => setFan(fanInput ?? 0)}>set</button>
-            <button title="+10%" on:click={() => setFan(metrics.fan_percent + 10)}>+</button>
-            {#if metrics.fan_mode === 'manual'}
-              <button class="auto" title="Back to automatic" on:click={fanAuto}>auto</button>
-            {/if}
+            <button class="fan-btn" on:click={() => setFan(fanInput ?? 0)}>Set</button>
+            <button class="fan-btn" class:active={metrics.fan_mode === 'auto'} on:click={fanAuto}>Auto</button>
           </div>
         </div>
       {:else}
@@ -250,35 +248,35 @@
   .dcard b { color: var(--text); font-size: 1rem; font-weight: 600; }
   .dcard b.caps { font-variant: small-caps; text-transform: lowercase; letter-spacing: 1px; }
 
-  .fan-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
-  .fan-ctl { display: flex; align-items: center; gap: 0.25rem; }
-  .fan-ctl button {
-    background: var(--surface-2);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    width: 1.6rem;
-    height: 1.6rem;
-    padding: 0;
-    font-size: 0.95rem;
-    line-height: 1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .fan-ctl button:hover { border-color: var(--green); color: var(--green); }
-  .fan-ctl button.auto { width: auto; padding: 0 0.45rem; font-size: 0.7rem; }
-  .fan-ctl input {
+  .fan-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+  .fan-ctl { display: flex; align-items: center; gap: 0.35rem; }
+  .fan-input {
     width: 3rem;
     background: var(--surface-2);
     color: var(--text);
     border: 1px solid var(--border);
-    border-radius: 5px;
-    padding: 0.15rem 0.3rem;
+    border-radius: 6px;
+    padding: 0.2rem 0.4rem;
     font-size: 0.8rem;
-    text-align: center;
+    text-align: right;
+    -moz-appearance: textfield;
+    appearance: textfield;
   }
+  .fan-input:focus { outline: none; border-color: var(--green); }
+  .fan-input::-webkit-outer-spin-button,
+  .fan-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .fan-btn {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.22rem 0.6rem;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .fan-btn:hover { color: var(--text); border-color: var(--text-muted); }
+  .fan-btn.active { color: var(--green); border-color: var(--green); }
 
   .proc-section h2 { font-size: 1rem; color: var(--text-2); margin-bottom: 0.75rem; }
   .proc-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
