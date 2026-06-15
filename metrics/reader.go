@@ -29,6 +29,9 @@ type SystemMetrics struct {
 	DiskUsedGB    float64 `json:"disk_used_gb"`
 	DiskPercent   float64 `json:"disk_percent"`
 	DiskName      string  `json:"disk_name"`
+	DiskTempC     float64 `json:"disk_temp_c"`
+	DiskReadMBps  float64 `json:"disk_read_mbps"`
+	DiskWriteMBps float64 `json:"disk_write_mbps"`
 	NetRxKbps     float64 `json:"net_rx_kbps"`
 	NetTxKbps     float64 `json:"net_tx_kbps"`
 	Load1         float64 `json:"load_1"`
@@ -36,6 +39,7 @@ type SystemMetrics struct {
 	Load15        float64 `json:"load_15"`
 	UptimeSeconds int     `json:"uptime_seconds"`
 	FanState      int     `json:"fan_state"`
+	FanPercent    int     `json:"fan_percent"`
 	Throttled     string  `json:"throttled"`
 }
 
@@ -172,9 +176,12 @@ func readMetrics() *SystemMetrics {
 	readTemp(m)
 	readMeminfo(m)
 	readDisk(m)
+	readDiskIO(m)
+	readDiskTemp(m)
 	readNetDev(m)
 	readLoadAvg(m)
 	readFanState(m)
+	readFan(m)
 	readThrottled(m)
 	return m
 }
@@ -291,31 +298,137 @@ func readDisk(m *SystemMetrics) {
 	}
 }
 
-// primaryDiskName resolves a clean, human label for the disk backing "/". The
-// device never changes at runtime, so it's computed once and cached.
+// The disk backing "/" never changes at runtime, so resolve its device node
+// (e.g. "nvme0n1") and a clean human label once and cache both.
 var (
-	diskNameOnce  sync.Once
-	diskNameValue string
+	diskOnce sync.Once
+	diskNode string
+	diskName string
 )
 
-func primaryDiskName() string {
-	diskNameOnce.Do(func() { diskNameValue = computeDiskName() })
-	return diskNameValue
+func diskInit() {
+	diskOnce.Do(func() {
+		diskNode = parentDisk(rootDevice())
+		if model := diskModel(diskNode); model != "" {
+			diskName = simplifyDiskName(model)
+			return
+		}
+		switch {
+		case strings.HasPrefix(diskNode, "nvme"):
+			diskName = "NVMe SSD"
+		case strings.HasPrefix(diskNode, "mmcblk"):
+			diskName = "SD card"
+		default:
+			diskName = diskNode
+		}
+	})
 }
 
-func computeDiskName() string {
-	disk := parentDisk(rootDevice())
-	if model := diskModel(disk); model != "" {
-		return simplifyDiskName(model)
+func primaryDiskName() string { diskInit(); return diskName }
+func primaryDiskNode() string { diskInit(); return diskNode }
+
+// readDiskIO reports read/write throughput (MB/s) for the primary disk from
+// /proc/diskstats sector deltas. Delta state is owned by the metrics goroutine.
+var (
+	lastDiskRd   uint64
+	lastDiskWr   uint64
+	lastDiskTime time.Time
+)
+
+func readDiskIO(m *SystemMetrics) {
+	data, err := os.ReadFile("/proc/diskstats")
+	if err != nil {
+		return
 	}
-	switch {
-	case strings.HasPrefix(disk, "nvme"):
-		return "NVMe SSD"
-	case strings.HasPrefix(disk, "mmcblk"):
-		return "SD card"
-	default:
-		return disk
+	node := primaryDiskNode()
+	var rd, wr uint64
+	found := false
+	for _, line := range strings.Split(string(data), "\n") {
+		f := strings.Fields(line)
+		if len(f) < 10 || f[2] != node {
+			continue
+		}
+		rd, _ = strconv.ParseUint(f[5], 10, 64) // sectors read
+		wr, _ = strconv.ParseUint(f[9], 10, 64) // sectors written
+		found = true
+		break
 	}
+	if !found {
+		return
+	}
+	now := time.Now()
+	interval := now.Sub(lastDiskTime).Seconds()
+	if !lastDiskTime.IsZero() && interval > 0 {
+		if rd >= lastDiskRd {
+			m.DiskReadMBps = float64(rd-lastDiskRd) * 512 / 1e6 / interval
+		}
+		if wr >= lastDiskWr {
+			m.DiskWriteMBps = float64(wr-lastDiskWr) * 512 / 1e6 / interval
+		}
+	}
+	lastDiskRd, lastDiskWr, lastDiskTime = rd, wr, now
+}
+
+// readDiskTemp reads the primary disk's onboard thermal sensor (NVMe drives
+// expose one via hwmon). Left at 0 for media without a sensor (e.g. SD cards).
+func readDiskTemp(m *SystemMetrics) {
+	node := primaryDiskNode()
+	matches, _ := filepath.Glob("/sys/block/" + node + "/device/hwmon*/temp1_input")
+	if len(matches) == 0 {
+		matches, _ = filepath.Glob("/sys/block/" + node + "/device/hwmon/hwmon*/temp1_input")
+	}
+	for _, p := range matches {
+		if b, err := os.ReadFile(p); err == nil {
+			if v, err := strconv.ParseFloat(strings.TrimSpace(string(b)), 64); err == nil && v > 0 {
+				m.DiskTempC = v / 1000.0
+				return
+			}
+		}
+	}
+}
+
+// readFan reports the Argon fan duty (%) that argononed applies for the current
+// CPU temperature, replicating its curve from /etc/argononed.conf (highest
+// threshold <= temp wins; below all thresholds is 0%). FanPercent is -1 when no
+// Argon config is present, so the UI can fall back to the kernel fan state.
+func readFan(m *SystemMetrics) {
+	m.FanPercent = -1
+	data, err := os.ReadFile("/etc/argononed.conf")
+	if err != nil {
+		return
+	}
+	type point struct {
+		temp  float64
+		speed int
+	}
+	var curve []point
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		kv := strings.SplitN(line, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		t, e1 := strconv.ParseFloat(strings.TrimSpace(kv[0]), 64)
+		s, e2 := strconv.Atoi(strings.TrimSpace(kv[1]))
+		if e1 == nil && e2 == nil {
+			curve = append(curve, point{t, s})
+		}
+	}
+	if len(curve) == 0 {
+		return
+	}
+	sort.Slice(curve, func(i, j int) bool { return curve[i].temp > curve[j].temp })
+	speed := 0
+	for _, p := range curve {
+		if m.CpuTempC >= p.temp {
+			speed = p.speed
+			break
+		}
+	}
+	m.FanPercent = speed
 }
 
 // rootDevice returns the device backing "/" (e.g. "nvme0n1p2"), sans /dev/.
