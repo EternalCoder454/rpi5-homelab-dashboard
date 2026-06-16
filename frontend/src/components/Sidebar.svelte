@@ -34,6 +34,7 @@
     ['docker', 'box', 'Docker'],
     ['services', 'server', 'Services'],
     ['network', 'network', 'Network'],
+    ['assistant', 'sparkles', 'Assistant'],
   ];
 </script>
 

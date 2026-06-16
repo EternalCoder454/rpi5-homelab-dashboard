@@ -2,12 +2,13 @@
   import { createEventDispatcher, onDestroy } from 'svelte';
   import Icon from './Icon.svelte';
   import SystemPanel from './SystemPanel.svelte';
+  import UpdatesPanel from './UpdatesPanel.svelte';
 
   export let theme: string;
   export let scale: number;
   const dispatch = createEventDispatcher<{ theme: string; scale: number; close: void }>();
 
-  let section: 'system' | 'appearance' = 'system';
+  let section: 'system' | 'updates' | 'appearance' = 'system';
 
   // Draggable window: offset from the centered position, moved by the header.
   let dx = 0,
@@ -82,6 +83,9 @@
         <button class:on={section === 'system'} on:click={() => (section = 'system')}>
           <Icon name="cpu" size={16} /> System
         </button>
+        <button class:on={section === 'updates'} on:click={() => (section = 'updates')}>
+          <Icon name="download2" size={16} /> Updates
+        </button>
         <button class:on={section === 'appearance'} on:click={() => (section = 'appearance')}>
           <Icon name="sun" size={16} /> Style
         </button>
@@ -90,6 +94,8 @@
       <div class="content">
         {#if section === 'system'}
           <SystemPanel />
+        {:else if section === 'updates'}
+          <UpdatesPanel />
         {:else}
           <div class="group">
             <span class="glabel">Theme</span>

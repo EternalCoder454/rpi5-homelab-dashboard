@@ -4,10 +4,8 @@
   import PiLogo from './PiLogo.svelte';
 
   let info: any = {};
-  let apt: any = { status: 'idle', running: false };
   let err = '';
   let infoTimer: ReturnType<typeof setInterval>;
-  let aptTimer: ReturnType<typeof setInterval> | undefined;
   let confirmPower: '' | 'reboot' | 'poweroff' = '';
 
   async function loadInfo() {
@@ -17,48 +15,7 @@
       /* transient */
     }
   }
-  async function loadApt() {
-    try {
-      apt = await (await fetch('/api/system/apt-status')).json();
-      if (!apt.running && aptTimer) {
-        clearInterval(aptTimer);
-        aptTimer = undefined;
-        loadInfo();
-      }
-    } catch {
-      /* transient */
-    }
-  }
-  function pollApt() {
-    if (!aptTimer) aptTimer = setInterval(loadApt, 2000);
-  }
 
-  async function post(url: string) {
-    const r = await fetch(url, { method: 'POST' });
-    if (!r.ok) throw new Error((await r.text()).trim());
-    return r.json();
-  }
-  async function refresh() {
-    err = '';
-    try {
-      await post('/api/system/refresh');
-      apt = { status: 'running', running: true, action: 'refresh' };
-      pollApt();
-    } catch (e) {
-      err = String(e instanceof Error ? e.message : e);
-    }
-  }
-  async function upgrade() {
-    if (!confirm('Apply all available updates now? This runs apt full-upgrade.')) return;
-    err = '';
-    try {
-      await post('/api/system/upgrade');
-      apt = { status: 'running', running: true, action: 'upgrade' };
-      pollApt();
-    } catch (e) {
-      err = String(e instanceof Error ? e.message : e);
-    }
-  }
   async function power(action: 'reboot' | 'poweroff') {
     err = '';
     try {
@@ -68,7 +25,6 @@
         body: JSON.stringify({ action }),
       });
       confirmPower = '';
-      apt = { status: 'idle', running: false };
       info = { ...info, _down: action };
     } catch (e) {
       err = String(e instanceof Error ? e.message : e);
@@ -76,18 +32,12 @@
   }
 
   const fmtUptime = (s: number) => (s ? `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m` : '--');
-  $: updCount = info.updates?.count ?? 0;
-  $: updSec = info.updates?.security ?? 0;
 
   onMount(() => {
     loadInfo();
-    loadApt();
     infoTimer = setInterval(loadInfo, 10000);
   });
-  onDestroy(() => {
-    clearInterval(infoTimer);
-    if (aptTimer) clearInterval(aptTimer);
-  });
+  onDestroy(() => clearInterval(infoTimer));
 </script>
 
 <div class="syspanel">
@@ -105,21 +55,9 @@
   <div class="info">
     <div class="row"><span>Kernel</span><b>{info.kernel ?? '--'}</b></div>
     <div class="row"><span>Uptime</span><b>{fmtUptime(info.uptime_seconds)}</b></div>
-    <div class="row">
-      <span>Updates</span>
-      <b>{updCount} available{updSec ? ` · ${updSec} security` : ''}</b>
-    </div>
   </div>
 
   <div class="actions">
-    <div class="agroup">
-      <span class="alabel">Updates</span>
-      <div class="abtns">
-        <button class="ib" title="Check for updates" on:click={refresh} disabled={apt.running}><Icon name="refresh" size={17} /></button>
-        <button class="ib primary" title="Apply updates" on:click={upgrade} disabled={apt.running || updCount === 0}><Icon name="download2" size={17} /></button>
-      </div>
-    </div>
-
     <div class="agroup">
       <span class="alabel">Power</span>
       <div class="abtns">
@@ -138,14 +76,6 @@
       </div>
     </div>
   </div>
-
-  {#if apt.status === 'running'}
-    <div class="apt running"><span class="spin"></span>{apt.action === 'upgrade' ? 'Upgrading…' : 'Checking…'} (can take a few minutes)</div>
-  {:else if apt.status === 'done'}
-    <div class="apt done">✓ {apt.action === 'upgrade' ? 'Upgrade complete.' : 'Package lists refreshed.'}</div>
-  {:else if apt.status === 'error'}
-    <div class="apt error">⚠ {apt.message}</div>
-  {/if}
 </div>
 
 <style>
@@ -184,17 +114,9 @@
   }
   .ib:hover:not(:disabled) { border-color: var(--border-3); color: var(--text); }
   .ib:disabled { opacity: 0.4; cursor: default; }
-  .ib.primary { background: var(--green-bg); border-color: var(--green-bd); color: var(--green); }
   .ib.ok { background: var(--green-bg); border-color: var(--green-bd); color: var(--green); }
   .ib.danger { color: var(--red); }
   .ib.danger:hover:not(:disabled) { border-color: var(--red-bd); color: var(--red); }
-
-  .apt { font-size: 0.83rem; display: flex; align-items: center; gap: 0.5rem; }
-  .apt.running { color: var(--blue); }
-  .apt.done { color: var(--green); }
-  .apt.error { color: var(--red); overflow-wrap: anywhere; }
-  .spin { width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
 
   @media (max-width: 640px) {
     .actions { flex-direction: column; }

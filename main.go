@@ -117,6 +117,18 @@ func main() {
 	http.HandleFunc("/ws/docker/logs", protect(handlers.DockerLogs))
 	http.HandleFunc("/ws/docker/terminal", protect(handlers.DockerTerminal))
 
+	// Assistant: a chat tab grounded in this Pi's live state, proxying inference
+	// to a (typically remote) Ollama server.
+	http.HandleFunc("/api/assistant/config", protect(handlers.AssistantConfig))
+	http.HandleFunc("/api/assistant/probe", protect(handlers.AssistantProbe))
+	http.HandleFunc("/ws/assistant/chat", protect(handlers.AssistantChat))
+
+	// Agent action gateway: the only side-effect path the assistant has. Runs a
+	// fixed allowlist of vetted scripts (never arbitrary commands), user-confirmed.
+	http.HandleFunc("/api/agent/actions", protect(handlers.AgentActions))
+	http.HandleFunc("/api/agent/log", protect(handlers.AgentLog))
+	http.HandleFunc("/ws/agent/run", protect(handlers.AgentRun))
+
 	// systemd services + host logs.
 	http.HandleFunc("/api/services", protect(handlers.ServicesList))
 	http.HandleFunc("/api/services/action", protect(handlers.ServicesAction))
@@ -128,6 +140,8 @@ func main() {
 	http.HandleFunc("/api/system/refresh", protect(handlers.SystemRefresh))
 	http.HandleFunc("/api/system/upgrade", protect(handlers.SystemUpgrade))
 	http.HandleFunc("/api/system/apt-status", protect(handlers.SystemAptStatus))
+	http.HandleFunc("/api/system/updates", protect(handlers.SystemUpdates))
+	http.HandleFunc("/api/system/update-package", protect(handlers.SystemUpdatePackage))
 
 	// Argon fan control (manual fixed speed / restore automatic curve).
 	http.HandleFunc("/api/fan/set", protect(handlers.FanSet))

@@ -11,6 +11,7 @@
   import Login from './pages/Login.svelte';
   import Settings from './components/Settings.svelte';
   import Network from './pages/Network.svelte';
+  import Assistant from './pages/Assistant.svelte';
 
   let page = 'hub';
 
@@ -112,6 +113,7 @@
       {:else if page === 'docker'}<Docker />
       {:else if page === 'services'}<Services />
       {:else if page === 'network'}<Network />
+      {:else if page === 'assistant'}<Assistant />
       {/if}
     </main>
   </div>
